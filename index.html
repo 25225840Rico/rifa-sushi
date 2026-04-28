@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Generador de Rifas Profesional</title>
+    <style>
+        :root {
+            --bg: #f5f5f7;
+            --card: #ffffff;
+            --text: #1d1d1f;
+            --text-secondary: #86868b;
+            --accent: #0071e3;
+            --border: #e5e5ea;
+            --radius: 18px;
+            --shadow: 0 4px 16px rgba(0,0,0,0.06);
+            --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            background: var(--bg);
+            font-family: var(--font);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+        .app {
+            display: flex;
+            gap: 2rem;
+            max-width: 1400px;
+            width: 100%;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .config-panel {
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 1.5rem;
+            width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .section {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1rem;
+            background: #fafafa;
+        }
+        .section h3 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 0.8rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        .section h3 .arrow { transition: transform 0.2s; font-size:0.7rem; }
+        .section.collapsed .content { display: none; }
+        .section.collapsed h3 .arrow { transform: rotate(-90deg); }
+        .field { margin-bottom: 0.7rem; display: flex; flex-direction: column; gap: 0.25rem; }
+        .field.row { flex-direction: row; align-items: center; gap: 0.5rem; }
+        label { font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); }
+        input, textarea, select {
+            padding: 0.5rem 0.7rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-family: var(--font);
+            font-size: 0.9rem;
+            background: #fff;
+            outline: none;
+            width: 100%;
+            transition: border 0.2s, box-shadow 0.2s;
+        }
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0,113,227,0.1);
+        }
+        input[type="color"] { width: 50px; height: 34px; padding: 2px; cursor: pointer; }
+        input[type="range"] { width: 100%; padding:0; margin:0; }
+        .range-value { font-size: 0.7rem; color: var(--text-secondary); text-align: right; min-width: 30px; }
+        .emoji-grid { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.4rem 0; }
+        .emoji-btn {
+            width: 36px; height: 36px; font-size: 1.3rem;
+            border: 1px solid var(--border); border-radius: 8px; background: #fff;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: 0.15s;
+        }
+        .emoji-btn.active, .emoji-btn:hover {
+            background: #e8f0fe; border-color: var(--accent); transform: scale(1.05);
+        }
+        .checkbox-label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; }
+        button {
+            padding: 0.6rem 1.4rem; border: none; border-radius: 100px;
+            font-weight: 500; cursor: pointer; font-family: var(--font);
+            font-size: 0.9rem; transition: 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(0,113,227,0.3); }
+        .btn-primary:hover { background: #0077ed; transform: translateY(-1px); }
+        .btn-secondary { background: #e8e8ed; color: #1d1d1f; }
+        .btn-secondary:hover { background: #dcdce0; }
+        .price-section { background: #f0f7ff; border-left: 4px solid var(--accent); }
+        .preview-area {
+            flex: 1; min-width: 400px; display: flex;
+            flex-direction: column; align-items: center; gap: 1rem;
+        }
+        .canvas-container {
+            background: #fff; border-radius: var(--radius); box-shadow: var(--shadow);
+            padding: 1rem; display: flex; justify-content: center;
+        }
+        canvas { display: block; max-width: 100%; height: auto; border: 1px solid #eee; }
+        .loader {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 28px; height: 28px; border: 3px solid rgba(0,113,227,0.2);
+            border-top-color: var(--accent); border-radius: 50%;
+            animation: spin 0.7s linear infinite; display: none;
+        }
+        @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+        .preview-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center; }
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(6px); display: flex; align-items: center;
+            justify-content: center; z-index: 1000;
+            visibility: hidden; opacity: 0; transition: 0.25s;
+        }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .modal-box {
+            background: #fff; border-radius: 24px; padding: 1.5rem;
+            max-width: 95vw; max-height: 95vh; display: flex;
+            flex-direction: column; align-items: center; gap: 1rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3); position: relative;
+        }
+        .modal-box img { max-width: 100%; max-height: 70vh; border-radius: 12px; border: 1px solid #ddd; }
+        .modal-close {
+            position: absolute; top: 0.8rem; right: 1rem;
+            font-size: 1.6rem; background: none; border: none; cursor: pointer; color: #888;
+        }
+        .modal-close:hover { color: #000; }
+        @media (max-width: 900px) {
+            .app { flex-direction: column; align-items: center; }
+            .config-panel { width: 100%; max-height: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="config-panel">
+            <h2>🎛️ Datos de la Rifa</h2>
+
+            <div class="section" id="sec-titulo">
+                <h3 onclick="toggleSection('sec-titulo')">📝 Nombre de la rifa <span class="arrow">▼</span></h3>
+                <div class="content">
+                    <div class="field"><label>Texto</label><input type="text" id="titulo" value="Rifa Pro Fondos"></div>
+                    <div class="field row"><label>Tamaño</label><input type="range" id="tituloSize" min="12" max="60" value="28"><span class="range-value" id="tituloSizeVal">28</span></div>
+                    <div class="field row"><label>Color</label><input type="color" id="tituloColor" value="#1d1d1f"></div>
+                    <div class="field row"><label>Alineación</label><select id="tituloAlign"><option value="center" selected>Centro</option><option value="left">Izquierda</option><option value="right">Derecha</option></select></div>
+                </div>
+            </div>
+
+            <div class="section" id="sec-premio">
+                <h3 onclick="toggleSection('sec-premio')">🎁 Descripción del premio <span class="arrow">▼</span></h3>
+                <div class="content">
+                    <div class="field"><label>Texto</label><textarea id="premio" rows="2">100 piezas de sushi + bebida de 3 litros</textarea></div>
+                    <div class="field row"><label>Tamaño</label><input type="range" id="premioSize" min="10" max="36" value="16"><span class="range-value" id="premioSizeVal">16</span></div>
+                    <div class="field row"><label>Color</label><input type="color" id="premioColor" value="#333333"></div>
+                    <div class="field row"><label>Alineación</label><select id="premioAlign"><option value="left" selected>Izquierda</option><option value="center">Centro</option><option value="right">Derecha</option></select></div>
+                </div>
+            </div>
+
+            <div class="section price-section" id="sec-precio">
+                <h3 onclick="toggleSection('sec-precio')">💰 Valor del número <span class="arrow">▼</span></h3>
+                <div class="content">
+                    <div class="field"><label>Monto ($)</label><input type="number" id="precioValor" value="5" min="0" step="0.01"></div>
+                    <div class="field row"><label>Tamaño</label><input type="range" id="precioSize" min="12" max="48" value="24"><span class="range-value" id="precioSizeVal">24</span></div>
+                    <div class="field row"><label>Color</label><input type="color" id="precioColor" value="#0071e3"></div>
+                    <div class="field row"><label>Alineación</label><select id="precioAlign"><option value="left" selected>Izquierda</option><option value="center">Centro</option><option value="right">Derecha</option></select></div>
+                </div>
+            </div>
+
+            <div class="section" id="sec-fecha">
+                <h3 onclick="toggleSection('sec-fecha')">📅 Fecha del sorteo <span class="arrow">▼</span></h3>
+                <div class="content">
+                    <div class="field"><label>Texto</label><input type="text" id="fecha" value="Domingo 17 de mayo"></div>
+                    <div class="field row"><label>Tamaño</label><input type="range" id="fechaSize" min="10" max="36" value="16"><span class="range-value" id="fechaSizeVal">16</span></div>
+                    <div class="field row"><label>Color</label><input type="color" id="fechaColor" value="#444444"></div>
+                    <div class="field row"><label>Alineación</label><select id="fechaAlign"><option value="left" selected>Izquierda</option><option value="center">Centro</option><option value="right">Derecha</option></select></div>
+                </div>
+            </div>
+
+            <div class="section" id="sec-modalidad">
+                <h3 onclick="toggleSection('sec-modalidad')">🎲 Modalidad de sorteo <span class="arrow">▼</span></h3>
+                <div class="content">
+                    <div class="field"><label>Texto</label><input type="text" id="modalidad" value="Comodín del Loto del domingo 17 de mayo"></div>
+                    <div class="field row"><label>Tamaño</label><input type="range" id="modalidadSize" min="10" max="36" value="16"><span class="range-value" id="modalidadSizeVal">16</span></div>
+                    <div class="field row"><label>Color</label><input type="color" id="modalidadColor" value="#555555"></div>
+                    <div class="field row"><label>Alineación</label><select id="modalidadAlign"><option value="left" selected>Izquierda</option><option value="center">Centro</option><option value="right">Derecha</option></select></div>
+                </div>
+            </div>
+
+            <div class="section" id="sec-pago">
+                <h3 onclick="toggleSection('sec-pago')">💳 Forma de pago <span class="arrow">▼</span></h3>
+                <div class="content">
+                    <div class="field"><label>Texto</label><input type="text" id="pago" value="Transferencia, efectivo o Nequi"></div>
+                    <div class="field row"><label>Tamaño</label><input type="range" id="pagoSize" min="10" max="36" value="16"><span class="range-value" id="pagoSizeVal">16</span></div>
+                    <div class="field row"><label>Color</label><input type="color" id="pagoColor" value="#444444"></div>
+                    <div class="field row"><label>Alineación</label><select id="pagoAlign"><option value="left" selected>Izquierda</option><option value="center">Centro</option><option value="right">Derecha</option></select></div>
+                </div>
+            </div>
+
+            <div class="section" id="sec-organizador">
+                <h3 onclick="toggleSection('sec-organizador')">👤 Organizador <span class="arrow">▼</span></h3>
+                <div class="content">
+                    <div class="field"><label>Texto</label><input type="text" id="organizador" value="Juan Pérez"></div>
+                    <div class="field row"><label>Tamaño</label><input type="range" id="organizadorSize" min="10" max="36" value="16"><span class="range-value" id="organizadorSizeVal">16</span></div>
+                    <div class="field row"><label>Color</label><input type="color" id="organizadorColor" value="#333333"></div>
+                    <div class="field row"><label>Alineación</label><select id="organizadorAlign"><option value="left" selected>Izquierda</option><option value="center">Centro</option><option value="right">Derecha</option></select></div>
+                </div>
+            </div>
+
+            <div class="section" id="sec-condiciones">
+                <h3 onclick="toggleSection('sec-condiciones')">📋 Condiciones <span class="arrow">▼</span></h3>
+                <div class="content">
+                    <div class="field"><label>Una condición por línea</label><textarea id="condiciones" rows="5">Participación válida solo con pago confirmado.
+No se reservan números sin pago.
+El sorteo es transparente y público según la modalidad indicada.
+El premio debe ser retirado o coordinado en un plazo definido.
+El organizador no se hace responsable por errores en datos del participante.
+Participar implica aceptación total de las bases.</textarea></div>
+                    <div class="field row"><label>Tamaño</label><input type="range" id="condicionesSize" min="8" max="24" value="12"><span class="range-value" id="condicionesSizeVal">12</span></div>
+                    <div class="field row"><label>Color</label><input type="color" id="condicionesColor" value="#666666"></div>
+                    <div class="field row"><label>Alineación</label><select id="condicionesAlign"><option value="left" selected>Izquierda</option><option value="center">Centro</option><option value="right">Derecha</option></select></div>
+                </div>
+            </div>
+
+            <div class="section" id="sec-cuadricula">
+                <h3 onclick="toggleSection('sec-cuadricula')">🔢 Cuadrícula <span class="arrow">▼</span></h3>
+                <div class="content">
+                    <div class="field"><label>Cantidad de números (N)</label><input type="number" id="cantidadN" value="50" min="1"></div>
+                    <label class="checkbox-label"><input type="checkbox" id="autoOptimize" checked> Optimizar automáticamente</label>
+                    <div id="manualGrid" style="display:none;">
+                        <div class="field row"><label>Filas</label><input type="number" id="manualRows" value="5"><label>Columnas</label><input type="number" id="manualCols" value="10"></div>
+                    </div>
+                    <div style="font-size:0.8rem; color:#555;" id="gridInfo"></div>
+                    <div class="field"><label>Emoji de relleno</label>
+                        <div class="emoji-grid" id="emojiGrid">
+                            <button class="emoji-btn active">😊</button><button class="emoji-btn">🎉</button><button class="emoji-btn">⭐</button>
+                            <button class="emoji-btn">❤️</button><button class="emoji-btn">🔥</button><button class="emoji-btn">💰</button>
+                            <button class="emoji-btn">🎁</button><button class="emoji-btn">🍀</button><button class="emoji-btn">🎈</button><button class="emoji-btn">🎯</button>
+                        </div>
+                        <input type="text" id="customEmoji" value="😊" maxlength="4" placeholder="O escribe un emoji">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="preview-area">
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="previewCanvas"></canvas>
+                <div class="loader" id="loader"></div>
+            </div>
+            <div class="preview-actions">
+                <button class="btn-secondary" id="resetDefaults">Restablecer ejemplo</button>
+                <button class="btn-primary" id="openPreviewBtn">🔍 Vista previa y descargar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-box">
+            <button class="modal-close" id="modalClose">&times;</button>
+            <h3>Vista previa final</h3>
+            <img id="modalImage" src="" alt="Tabla de rifa">
+            <button class="btn-primary" id="modalDownload">⬇️ Descargar JPG</button>
+        </div>
+    </div>
+
+    <script>
+        function toggleSection(id) { document.getElementById(id).classList.toggle('collapsed'); }
+
+        (function() {
+            const $ = (id) => document.getElementById(id);
+            const canvas = $('previewCanvas');
+            const ctx = canvas.getContext('2d');
+            const loader = $('loader');
+
+            // Referencias a campos
+            const C = {
+                titulo:    { txt:$('titulo'), size:$('tituloSize'), color:$('tituloColor'), align:$('tituloAlign') },
+                premio:    { txt:$('premio'), size:$('premioSize'), color:$('premioColor'), align:$('premioAlign') },
+                precio:    { val:$('precioValor'), size:$('precioSize'), color:$('precioColor'), align:$('precioAlign') },
+                fecha:     { txt:$('fecha'), size:$('fechaSize'), color:$('fechaColor'), align:$('fechaAlign') },
+                modalidad: { txt:$('modalidad'), size:$('modalidadSize'), color:$('modalidadColor'), align:$('modalidadAlign') },
+                pago:      { txt:$('pago'), size:$('pagoSize'), color:$('pagoColor'), align:$('pagoAlign') },
+                organizador:{ txt:$('organizador'), size:$('organizadorSize'), color:$('organizadorColor'), align:$('organizadorAlign') },
+                condiciones:{ txt:$('condiciones'), size:$('condicionesSize'), color:$('condicionesColor'), align:$('condicionesAlign') }
+            };
+
+            const cantidadN = $('cantidadN');
+            const autoOptimize = $('autoOptimize');
+            const manualRows = $('manualRows');
+            const manualCols = $('manualCols');
+            const manualGridDiv = $('manualGrid');
+            const gridInfo = $('gridInfo');
+            const customEmoji = $('customEmoji');
+            const emojiBtns = document.querySelectorAll('.emoji-btn');
+
+            const modalOverlay = $('modalOverlay');
+            const modalImage = $('modalImage');
+            const modalClose = $('modalClose');
+            const modalDownload = $('modalDownload');
+            const openPreviewBtn = $('openPreviewBtn');
+            const resetDefaultsBtn = $('resetDefaults');
+
+            let currentEmoji = '😊';
+            let currentMatriz = [];
+
+            // Actualizar displays de rangos
+            function updRange(r, spanId) { $(spanId).textContent = r.value; }
+            for (let [k, c] of Object.entries(C)) {
+                if (c.size) {
+                    c.size.addEventListener('input', () => updRange(c.size, k + 'SizeVal'));
+                    updRange(c.size, k + 'SizeVal');
+                }
+            }
+
+            autoOptimize.addEventListener('change', () => {
+                manualGridDiv.style.display = autoOptimize.checked ? 'none' : 'block';
+                render();
+            });
+
+            // Emoji
+            emojiBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    emojiBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    customEmoji.value = btn.textContent;
+                    currentEmoji = btn.textContent;
+                    render();
+                });
+            });
+            customEmoji.addEventListener('input', () => {
+                currentEmoji = customEmoji.value || '😊';
+                emojiBtns.forEach(b => b.classList.remove('active'));
+                render();
+            });
+
+            // Matriz optimizada
+            function optimizarMatriz(N) {
+                let mr = 1, mc = N, md = Math.abs(mr - mc);
+                const lim = Math.ceil(Math.sqrt(N));
+                for (let r = 1; r <= lim; r++) {
+                    const c = Math.ceil(N / r), d = Math.abs(r - c);
+                    if (d < md) { md = d; mr = r; mc = c; }
+                    const c2 = Math.ceil(N / c), d2 = Math.abs(c - c2);
+                    if (d2 < md) { md = d2; mr = c; mc = c2; }
+                }
+                return { rows: mr, cols: mc };
+            }
+
+            function construirMatriz(N, rows, cols) {
+                const m = []; let num = 1;
+                for (let r = 0; r < rows; r++) {
+                    const fila = [];
+                    for (let c = 0; c < cols; c++) {
+                        fila.push(num <= N ? num : currentEmoji);
+                        num++;
+                    }
+                    m.push(fila);
+                }
+                return m;
+            }
+
+            function obtenerDimensiones() {
+                const N = parseInt(cantidadN.value) || 1;
+                if (autoOptimize.checked) return optimizarMatriz(N);
+                const r = parseInt(manualRows.value) || 1;
+                const c = parseInt(manualCols.value) || 1;
+                gridInfo.textContent = r * c < N ? '⚠️ Dimensiones insuficientes.' : '';
+                return { rows: r, cols: c };
+            }
+
+            function formatPrice(v) {
+                const n = parseFloat(v);
+                if (isNaN(n)) return '';
+                return n === Math.floor(n) ? `$${n}` : `$${n.toFixed(2)}`;
+            }
+
+            // Orden de renderizado: Título → Premio → Precio → Fecha → Modalidad → Pago → Organizador → Cuadrícula → Condiciones
+            function render() {
+                const N = parseInt(cantidadN.value) || 1;
+                const { rows, cols } = obtenerDimensiones();
+                currentMatriz = construirMatriz(N, rows, cols);
+                gridInfo.textContent = `${rows} filas × ${cols} columnas (${rows*cols} celdas)`;
+
+                const cellSize = 560 / cols;
+                const ANCHO = 600;
+                const MARGEN = 20;
+
+                // Posiciones fijas automáticas (secuenciales)
+                let y = 45; // inicio del título
+
+                // Función helper para dibujar un campo y avanzar y
+                function dibujarCampo(txt, size, color, align, isBold = false) {
+                    if (!txt || txt.trim() === '') return;
+                    const sz = parseInt(size);
+                    ctx.fillStyle = color;
+                    ctx.font = `${isBold ? 'bold ' : ''}${sz}px -apple-system, sans-serif`;
+                    ctx.textAlign = align;
+                    // Calcular x según alineación
+                    let x;
+                    if (align === 'center') x = ANCHO / 2;
+                    else if (align === 'right') x = ANCHO - MARGEN;
+                    else x = MARGEN;
+                    ctx.fillText(txt, x, y);
+                    y += sz + 8; // interlineado
+                }
+
+                // Calcular altura total primero para dimensionar canvas
+                let ySim = 45;
+                function simular(txt, sz) {
+                    if (!txt || txt.trim() === '') return;
+                    ySim += parseInt(sz) + 8;
+                }
+                simular(C.titulo.txt.value, C.titulo.size.value);
+                simular(C.premio.txt.value, C.premio.size.value);
+                if (parseFloat(C.precio.val.value) > 0) {
+                    simular(`Valor: ${formatPrice(C.precio.val.value)}`, C.precio.size.value);
+                }
+                simular(C.fecha.txt.value, C.fecha.size.value);
+                simular(C.modalidad.txt.value, C.modalidad.size.value);
+                simular(`Pago: ${C.pago.txt.value}`, C.pago.size.value);
+                simular(`Organiza: ${C.organizador.txt.value}`, C.organizador.size.value);
+                // Cuadrícula
+                const gridStartY = ySim + 10;
+                const gridEndY = gridStartY + rows * cellSize;
+                ySim = gridEndY + 15;
+                // Condiciones
+                const condLines = C.condiciones.txt.value.split('\n').filter(l => l.trim() !== '');
+                const condSize = parseInt(C.condiciones.size.value);
+                ySim += condLines.length * (condSize + 4) + 10;
+
+                canvas.width = ANCHO;
+                canvas.height = Math.max(ySim, 200);
+                canvas.style.width = ANCHO + 'px';
+                canvas.style.height = canvas.height + 'px';
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Reiniciar y para dibujo real
+                y = 45;
+
+                // 1. Título
+                dibujarCampo(C.titulo.txt.value, C.titulo.size.value, C.titulo.color.value, C.titulo.align.value);
+
+                // 2. Premio
+                dibujarCampo(C.premio.txt.value, C.premio.size.value, C.premio.color.value, C.premio.align.value);
+
+                // 3. Precio (debajo del premio, destacado)
+                const precioVal = parseFloat(C.precio.val.value);
+                if (precioVal > 0) {
+                    dibujarCampo(`Valor: ${formatPrice(precioVal)}`, C.precio.size.value, C.precio.color.value, C.precio.align.value, true);
+                }
+
+                // 4. Fecha
+                dibujarCampo(C.fecha.txt.value, C.fecha.size.value, C.fecha.color.value, C.fecha.align.value);
+
+                // 5. Modalidad
+                dibujarCampo(C.modalidad.txt.value, C.modalidad.size.value, C.modalidad.color.value, C.modalidad.align.value);
+
+                // 6. Pago
+                const pagoTxt = C.pago.txt.value.trim();
+                if (pagoTxt) dibujarCampo(`Pago: ${pagoTxt}`, C.pago.size.value, C.pago.color.value, C.pago.align.value);
+
+                // 7. Organizador
+                const orgTxt = C.organizador.txt.value.trim();
+                if (orgTxt) dibujarCampo(`Organiza: ${orgTxt}`, C.organizador.size.value, C.organizador.color.value, C.organizador.align.value);
+
+                // 8. Cuadrícula
+                const gridY = y + 10;
+                ctx.strokeStyle = '#c6c6c8';
+                ctx.lineWidth = 1;
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        const x = MARGEN + c * cellSize;
+                        const yy = gridY + r * cellSize;
+                        ctx.strokeRect(x, yy, cellSize, cellSize);
+                        const val = currentMatriz[r][c];
+                        ctx.fillStyle = '#1d1d1f';
+                        ctx.font = typeof val === 'string' && val.length > 1 ? '28px sans-serif' : 'bold 22px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(val, x + cellSize/2, yy + cellSize/2);
+                    }
+                }
+                ctx.textAlign = 'start';
+                ctx.textBaseline = 'alphabetic';
+
+                // 9. Condiciones
+                if (condLines.length > 0) {
+                    y = gridY + rows * cellSize + 15;
+                    const cSize = condSize;
+                    ctx.fillStyle = C.condiciones.color.value;
+                    ctx.font = `${cSize}px -apple-system, sans-serif`;
+                    ctx.textAlign = C.condiciones.align.value;
+                    for (let line of condLines) {
+                        let x;
+                        const align = C.condiciones.align.value;
+                        if (align === 'center') x = ANCHO / 2;
+                        else if (align === 'right') x = ANCHO - MARGEN;
+                        else x = MARGEN;
+                        ctx.fillText(line, x, y);
+                        y += cSize + 4;
+                    }
+                }
+            }
+
+            // Debounce
+            let timer;
+            function debounceRender() {
+                clearTimeout(timer);
+                loader.style.display = 'block';
+                timer = setTimeout(() => { render(); loader.style.display = 'none'; }, 200);
+            }
+
+            // Listeners
+            document.querySelectorAll('input, textarea, select').forEach(inp => {
+                if (!inp.classList.contains('emoji-btn')) {
+                    inp.addEventListener('input', debounceRender);
+                }
+            });
+
+            // Reset
+            resetDefaultsBtn.addEventListener('click', () => {
+                C.titulo.txt.value = 'Rifa Pro Fondos';
+                C.titulo.size.value = 28; C.titulo.color.value = '#1d1d1f'; C.titulo.align.value = 'center';
+                C.premio.txt.value = '100 piezas de sushi + bebida de 3 litros';
+                C.premio.size.value = 16; C.premio.color.value = '#333333'; C.premio.align.value = 'left';
+                C.precio.val.value = 5;
+                C.precio.size.value = 24; C.precio.color.value = '#0071e3'; C.precio.align.value = 'left';
+                C.fecha.txt.value = 'Domingo 17 de mayo';
+                C.fecha.size.value = 16; C.fecha.color.value = '#444444'; C.fecha.align.value = 'left';
+                C.modalidad.txt.value = 'Comodín del Loto del domingo 17 de mayo';
+                C.modalidad.size.value = 16; C.modalidad.color.value = '#555555'; C.modalidad.align.value = 'left';
+                C.pago.txt.value = 'Transferencia, efectivo o Nequi';
+                C.pago.size.value = 16; C.pago.color.value = '#444444'; C.pago.align.value = 'left';
+                C.organizador.txt.value = 'Juan Pérez';
+                C.organizador.size.value = 16; C.organizador.color.value = '#333333'; C.organizador.align.value = 'left';
+                C.condiciones.txt.value = 'Participación válida solo con pago confirmado.\nNo se reservan números sin pago.\nEl sorteo es transparente y público según la modalidad indicada.\nEl premio debe ser retirado o coordinado en un plazo definido.\nEl organizador no se hace responsable por errores en datos del participante.\nParticipar implica aceptación total de las bases.';
+                C.condiciones.size.value = 12; C.condiciones.color.value = '#666666'; C.condiciones.align.value = 'left';
+                cantidadN.value = 50;
+                autoOptimize.checked = true; manualGridDiv.style.display = 'none';
+                customEmoji.value = '😊'; currentEmoji = '😊';
+                emojiBtns.forEach(b => b.classList.remove('active'));
+                document.querySelector('.emoji-btn').classList.add('active');
+                for (let [k, c] of Object.entries(C)) if (c.size) updRange(c.size, k + 'SizeVal');
+                render();
+            });
+
+            // Modal
+            openPreviewBtn.addEventListener('click', () => {
+                modalImage.src = canvas.toDataURL('image/jpeg', 0.95);
+                modalOverlay.classList.add('active');
+            });
+            modalClose.addEventListener('click', () => modalOverlay.classList.remove('active'));
+            modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) modalOverlay.classList.remove('active'); });
+            modalDownload.addEventListener('click', () => {
+                const a = document.createElement('a');
+                a.download = 'rifa.jpg';
+                a.href = canvas.toDataURL('image/jpeg', 0.95);
+                a.click();
+                modalOverlay.classList.remove('active');
+            });
+
+            render();
+        })();
+    </script>
+</body>
+</html>
